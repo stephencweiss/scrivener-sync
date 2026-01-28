@@ -36,10 +36,15 @@ func StripRTF(rtfContent string) string {
 	text = headerRe.ReplaceAllString(text, "")
 
 	// Convert RTF line breaks to newlines BEFORE removing control words
-	text = strings.ReplaceAll(text, "\\par\n", "\n")
-	text = strings.ReplaceAll(text, "\\par\r\n", "\n")
-	text = strings.ReplaceAll(text, "\\par ", "\n")
-	text = strings.ReplaceAll(text, "\\par", "\n")
+	// Use regex to match \par only when followed by space, newline, or non-letter
+	// This avoids matching \pard, \pardirnatural, \partightenfactor, etc.
+	parRe := regexp.MustCompile(`\\par(?:\s|$|[^a-z])`)
+	text = parRe.ReplaceAllStringFunc(text, func(match string) string {
+		if len(match) > 4 && match[4] != ' ' && match[4] != '\n' && match[4] != '\r' {
+			return "\n" + string(match[4])
+		}
+		return "\n"
+	})
 	text = strings.ReplaceAll(text, "\\\n", "\n")
 	text = strings.ReplaceAll(text, "\\\r\n", "\n")
 

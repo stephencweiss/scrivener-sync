@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ScrivenerProject Identifier="TEST-PROJECT-ID" Version="2.0" Creator="SCRMAC-3.5.2-17487" Device="test-device" Author="Test Author" Modified="2025-01-27 12:00:00 -0600" ModID="TEST-MOD-ID">
+    <Binder>
+        <BinderItem UUID="DRAFT-UUID-0001" Type="DraftFolder" Created="2025-01-01 12:00:00 -0600" Modified="2025-01-01 12:00:00 -0600">
+            <Title>Draft</Title>
+            <Children>
+                <BinderItem UUID="DOC-UUID-0001" Type="Text" Created="2025-01-01 12:00:00 -0600" Modified="2025-01-01 12:00:00 -0600">
+                    <Title>Chapter One</Title>
+                    <MetaData>
+                        <IncludeInCompile>Yes</IncludeInCompile>
+                    </MetaData>
+                    <TextSettings>
+                        <TextSelection>0,0</TextSelection>
+                    </TextSettings>
+                </BinderItem>
+                <BinderItem UUID="DOC-UUID-0002" Type="Text" Created="2025-01-01 12:00:00 -0600" Modified="2025-01-01 12:00:00 -0600">
+                    <Title>Chapter Two</Title>
+                    <MetaData>
+                        <IncludeInCompile>Yes</IncludeInCompile>
+                    </MetaData>
+                    <TextSettings>
+                        <TextSelection>0,0</TextSelection>
+                    </TextSettings>
+                </BinderItem>
+            </Children>
+        </BinderItem>
+        <BinderItem UUID="RESEARCH-UUID-0001" Type="ResearchFolder" Created="2025-01-01 12:00:00 -0600" Modified="2025-01-01 12:00:00 -0600">
+            <Title>Research</Title>
+            <Children>
+                <BinderItem UUID="FOLDER-UUID-0001" Type="Folder" Created="2025-01-01 12:00:00 -0600" Modified="2025-01-01 12:00:00 -0600">
+                    <Title>Characters</Title>
+                    <MetaData>
+                        <IncludeInCompile>Yes</IncludeInCompile>
+                    </MetaData>
+                    <Children>
+                        <BinderItem UUID="DOC-UUID-0003" Type="Text" Created="2025-01-01 12:00:00 -0600" Modified="2025-01-01 12:00:00 -0600">
+                            <Title>Hero</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>0,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                    </Children>
+                </BinderItem>
+            </Children>
+        </BinderItem>
+        <BinderItem UUID="TRASH-UUID-0001" Type="TrashFolder" Created="2025-01-01 12:00:00 -0600" Modified="2025-01-01 12:00:00 -0600">
+            <Title>Trash</Title>
+        </BinderItem>
+    </Binder>
+    <Collections>
+        <Collection Type="Binder" ID="E8D8F1B1-1111-1111-1111-111111111111">
+            <Title>Binder</Title>
+        </Collection>
+    </Collections>
+    <LabelSettings>
+        <Label ID="-1">No Label</Label>
+        <Label ID="0" Color="0.993495 0.701207 0.732587">Red</Label>
+    </LabelSettings>
+    <StatusSettings>
+        <Status ID="-1">No Status</Status>
+        <Status ID="0">To Do</Status>
+        <Status ID="1">In Progress</Status>
+        <Status ID="2">Done</Status>
+    </StatusSettings>
+    <ProjectTargets Notify="No">
+        <DraftTarget Type="Words" CountIncludedOnly="Yes" CurrentCompileGroupOnly="No" Deadline="2025-12-31 23:59:59 -0600" ShowDeadline="No" IgnoreDeadline="Yes">50000</DraftTarget>
+    </ProjectTargets>
+    <PrintSettings PaperSize="612.0,792.0" LeftMargin="72.0" RightMargin="72.0" TopMargin="90.0" BottomMargin="90.0" PaperType="na-letter" Orientation="Portrait" HorizontalPagination="Clip" VerticalPagination="Auto" ScaleFactor="1.0" HorizontallyCentered="Yes" VerticallyCentered="Yes" Collates="Yes" PagesAcross="1" PagesDown="1"/>
+</ScrivenerProject>

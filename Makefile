@@ -14,7 +14,8 @@ test:
 	go test -v ./...
 
 install: build
-	cp $(BINARY) /usr/local/bin/
+	mkdir -p ~/.local/bin
+	cp $(BINARY) ~/.local/bin/
 
 fmt:
 	go fmt ./...
