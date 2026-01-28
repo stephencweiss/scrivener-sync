@@ -135,15 +135,16 @@ func (w *Writer) UpdateDocumentContent(docUUID, content string, useRTF bool) err
 // CreateFolder creates a new folder in the binder.
 func (w *Writer) CreateFolder(title, parentUUID string) (string, error) {
 	newUUID := w.generateUUID()
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().Format("2006-01-02 15:04:05 -0700")
 
 	item := XMLBinderItem{
-		UUID:     newUUID,
-		Type:     "Folder",
-		Created:  now,
-		Modified: now,
-		Title:    title,
-		MetaData: XMLMetaData{IncludeInCompile: "Yes"},
+		UUID:         newUUID,
+		Type:         "Folder",
+		Created:      now,
+		Modified:     now,
+		Title:        title,
+		MetaData:     &XMLMetaData{IncludeInCompile: "Yes"},
+		TextSettings: &XMLTextSettings{TextSelection: "0,0"},
 	}
 
 	if parentUUID == "" {
@@ -164,15 +165,16 @@ func (w *Writer) CreateFolder(title, parentUUID string) (string, error) {
 // CreateDocument creates a new document in the binder.
 func (w *Writer) CreateDocument(title, content, parentUUID string, useRTF bool) (string, error) {
 	newUUID := w.generateUUID()
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().Format("2006-01-02 15:04:05 -0700")
 
 	item := XMLBinderItem{
-		UUID:     newUUID,
-		Type:     "Text",
-		Created:  now,
-		Modified: now,
-		Title:    title,
-		MetaData: XMLMetaData{IncludeInCompile: "Yes"},
+		UUID:         newUUID,
+		Type:         "Text",
+		Created:      now,
+		Modified:     now,
+		Title:        title,
+		MetaData:     &XMLMetaData{IncludeInCompile: "Yes"},
+		TextSettings: &XMLTextSettings{TextSelection: "0,0"},
 	}
 
 	if parentUUID == "" {
@@ -243,7 +245,11 @@ func (w *Writer) Save() error {
 		return nil
 	}
 
-	data, err := xml.MarshalIndent(w.project, "", "  ")
+	// Update project modification timestamp and ID
+	w.project.Modified = time.Now().Format("2006-01-02 15:04:05 -0700")
+	w.project.ModID = strings.ToUpper(uuid.New().String())
+
+	data, err := xml.MarshalIndent(w.project, "", "    ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal project XML: %w", err)
 	}
