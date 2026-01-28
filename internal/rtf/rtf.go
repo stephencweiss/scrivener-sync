@@ -186,10 +186,16 @@ func RTFToMarkdown(rtfContent string) string {
 	text = regexp.MustCompile(`\\i\s+([^\\]+)\\i0`).ReplaceAllString(text, "*$1*")
 
 	// Convert RTF line breaks to newlines
-	text = strings.ReplaceAll(text, "\\par\n", "\n")
-	text = strings.ReplaceAll(text, "\\par\r\n", "\n")
-	text = strings.ReplaceAll(text, "\\par ", "\n")
-	text = strings.ReplaceAll(text, "\\par", "\n")
+	// Use regex to match \par only when followed by space, newline, or non-letter
+	// This avoids matching \pard, \pardirnatural, \partightenfactor, etc.
+	parRe := regexp.MustCompile(`\\par(?:\s|$|[^a-z])`)
+	text = parRe.ReplaceAllStringFunc(text, func(match string) string {
+		// Keep the character after \par if it's not whitespace
+		if len(match) > 4 && match[4] != ' ' && match[4] != '\n' && match[4] != '\r' {
+			return "\n" + string(match[4])
+		}
+		return "\n"
+	})
 	text = strings.ReplaceAll(text, "\\\n", "\n")
 	text = strings.ReplaceAll(text, "\\\r\n", "\n")
 
@@ -208,6 +214,39 @@ func RTFToMarkdown(rtfContent string) string {
 	text = strings.ReplaceAll(text, "\\\\", "\\")
 	text = strings.ReplaceAll(text, "\\{", "{")
 	text = strings.ReplaceAll(text, "\\}", "}")
+
+	// Handle RTF hex character codes like \'92 (apostrophe), \'93/'94 (quotes)
+	hexCharRe := regexp.MustCompile(`\\'([0-9a-fA-F]{2})`)
+	text = hexCharRe.ReplaceAllStringFunc(text, func(match string) string {
+		// Common RTF character codes
+		switch match {
+		case "\\'92":
+			return "'"
+		case "\\'91":
+			return "'"
+		case "\\'93":
+			return "\""
+		case "\\'94":
+			return "\""
+		case "\\'96":
+			return "-"
+		case "\\'97":
+			return "--"
+		case "\\'85":
+			return "..."
+		default:
+			return "" // Remove unknown codes
+		}
+	})
+
+	// Clean up remaining RTF artifacts
+	// Remove \* (list markers) and lone backslashes at end of lines
+	text = strings.ReplaceAll(text, "\\*", "")
+	text = regexp.MustCompile(`\\+\s*$`).ReplaceAllStringFunc(text, func(match string) string {
+		return ""
+	})
+	// Remove any remaining lone backslashes followed by space
+	text = strings.ReplaceAll(text, "\\ ", " ")
 
 	// Normalize whitespace
 	text = multiSpaceRe.ReplaceAllString(text, " ")
