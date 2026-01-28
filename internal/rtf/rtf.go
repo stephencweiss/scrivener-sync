@@ -7,23 +7,52 @@ import (
 )
 
 var (
+	// headerRe matches RTF header sections like {\fonttbl...} and {\colortbl...}
+	headerRe = regexp.MustCompile(`\{\\(fonttbl|colortbl|stylesheet|info)[^}]*\}`)
 	// controlWordRe matches RTF control words like \par, \b0, etc.
 	controlWordRe = regexp.MustCompile(`\\[a-z]+\d*\s?`)
-	// whitespaceRe matches multiple whitespace characters
-	whitespaceRe = regexp.MustCompile(`\s+`)
+	// multiSpaceRe matches multiple spaces (but not newlines)
+	multiSpaceRe = regexp.MustCompile(`[ \t]+`)
+	// multiNewlineRe matches 3+ consecutive newlines
+	multiNewlineRe = regexp.MustCompile(`\n{3,}`)
 )
 
 // StripRTF converts RTF content to plain text by removing RTF formatting.
 func StripRTF(rtfContent string) string {
-	// Remove RTF control words
-	text := controlWordRe.ReplaceAllString(rtfContent, " ")
+	text := rtfContent
+
+	// Remove RTF header sections (font tables, color tables, etc.)
+	text = headerRe.ReplaceAllString(text, "")
+
+	// Convert RTF line breaks to newlines BEFORE removing control words
+	text = strings.ReplaceAll(text, "\\par\n", "\n")
+	text = strings.ReplaceAll(text, "\\par\r\n", "\n")
+	text = strings.ReplaceAll(text, "\\par ", "\n")
+	text = strings.ReplaceAll(text, "\\par", "\n")
+	text = strings.ReplaceAll(text, "\\\n", "\n")
+	text = strings.ReplaceAll(text, "\\\r\n", "\n")
+
+	// Remove remaining RTF control words
+	text = controlWordRe.ReplaceAllString(text, "")
 
 	// Remove braces
 	text = strings.ReplaceAll(text, "{", "")
 	text = strings.ReplaceAll(text, "}", "")
 
-	// Normalize whitespace
-	text = whitespaceRe.ReplaceAllString(text, " ")
+	// Normalize horizontal whitespace (but preserve newlines)
+	text = multiSpaceRe.ReplaceAllString(text, " ")
+
+	// Collapse excessive newlines (3+ becomes 2)
+	text = multiNewlineRe.ReplaceAllString(text, "\n\n")
+
+	// Trim leading/trailing whitespace from each line
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimSpace(line)
+	}
+	text = strings.Join(lines, "\n")
+
+	// Trim overall
 	text = strings.TrimSpace(text)
 
 	return text

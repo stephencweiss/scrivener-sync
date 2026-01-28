@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
-)
 
-// StateFileName is the default name for the sync state file.
-const StateFileName = ".sync_state.json"
+	"github.com/sweiss/harcroft/internal/config"
+)
 
 // State tracks the sync state between markdown files and Scrivener documents.
 type State struct {
@@ -81,6 +81,22 @@ func NewState(path string) *State {
 		DeletedFiles: make(map[string]FileState),
 		filePath:     path,
 	}
+}
+
+// LoadStateForAlias loads the state file for a project alias from ~/.scriv-sync/state/<alias>.json.
+func LoadStateForAlias(alias string) (*State, error) {
+	statePath, err := config.StatePath(alias)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure state directory exists
+	stateDir := filepath.Dir(statePath)
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create state directory: %w", err)
+	}
+
+	return LoadState(statePath)
 }
 
 // Save writes the state to its file.

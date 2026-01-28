@@ -16,26 +16,39 @@ import (
 
 // Syncer handles bi-directional sync between markdown and Scrivener.
 type Syncer struct {
-	config *config.Config
+	config *config.ProjectConfig
 	state  *State
 	reader *scrivener.Reader
 	writer *scrivener.Writer
 
 	mdRoot    string
 	scrivPath string
+	alias     string
 }
 
-// NewSyncer creates a new Syncer from the given configuration.
-func NewSyncer(cfg *config.Config) (*Syncer, error) {
+// NewSyncerForAlias creates a new Syncer for the given project alias.
+func NewSyncerForAlias(alias string) (*Syncer, error) {
+	globalCfg, err := config.LoadGlobal()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load global config: %w", err)
+	}
+
+	projCfg, err := globalCfg.GetProject(alias)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewSyncer(projCfg, alias)
+}
+
+// NewSyncer creates a new Syncer from the given project configuration.
+func NewSyncer(cfg *config.ProjectConfig, alias string) (*Syncer, error) {
 	scrivPath, err := cfg.ScrivenerPath()
 	if err != nil {
 		return nil, err
 	}
 
-	mdRoot, err := cfg.MarkdownPath()
-	if err != nil {
-		return nil, err
-	}
+	mdRoot := cfg.MarkdownPath()
 
 	reader, err := scrivener.NewReader(scrivPath)
 	if err != nil {
@@ -47,8 +60,7 @@ func NewSyncer(cfg *config.Config) (*Syncer, error) {
 		return nil, fmt.Errorf("failed to open Scrivener project for writing: %w", err)
 	}
 
-	statePath := filepath.Join(mdRoot, StateFileName)
-	state, err := LoadState(statePath)
+	state, err := LoadStateForAlias(alias)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sync state: %w", err)
 	}
@@ -61,6 +73,7 @@ func NewSyncer(cfg *config.Config) (*Syncer, error) {
 		writer:    writer,
 		mdRoot:    mdRoot,
 		scrivPath: scrivPath,
+		alias:     alias,
 	}, nil
 }
 

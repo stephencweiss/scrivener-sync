@@ -11,16 +11,43 @@ import (
 	"github.com/sweiss/harcroft/internal/scrivener"
 )
 
-// RunInit runs the interactive initialization process.
-func RunInit(scrivPath, configPath string, interactive bool) error {
-	// 1. Validate Scrivener project
+// RunInit runs the initialization process for a new project.
+func RunInit(alias, localPath, scrivPath string, interactive bool) error {
+	// 1. Load global config
+	globalCfg, err := config.LoadGlobal()
+	if err != nil {
+		return fmt.Errorf("failed to load global config: %w", err)
+	}
+
+	// 2. Check if alias already exists
+	if globalCfg.HasProject(alias) {
+		return fmt.Errorf("project '%s' already exists. Choose a different alias or remove the existing one", alias)
+	}
+
+	// 3. Validate paths
+	localPath, err = filepath.Abs(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve local path: %w", err)
+	}
+
+	scrivPath, err = filepath.Abs(scrivPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve scriv path: %w", err)
+	}
+
+	// Check local path exists
+	if info, err := os.Stat(localPath); err != nil || !info.IsDir() {
+		return fmt.Errorf("local path does not exist or is not a directory: %s", localPath)
+	}
+
+	// 4. Validate Scrivener project
 	fmt.Println("Scanning Scrivener project...")
 	reader, err := scrivener.NewReader(scrivPath)
 	if err != nil {
 		return fmt.Errorf("failed to open Scrivener project: %w", err)
 	}
 
-	// 2. Get Scrivener folders
+	// 5. Get Scrivener folders
 	folders, err := reader.GetTopLevelFolders()
 	if err != nil {
 		return fmt.Errorf("failed to read Scrivener folders: %w", err)
@@ -33,35 +60,38 @@ func RunInit(scrivPath, configPath string, interactive bool) error {
 	}
 	fmt.Println(strings.Join(folderNames, ", "))
 
-	// 3. Scan local directories
+	// 6. Scan local directories
 	fmt.Println("\nScanning local directories...")
-	localDirs := scanLocalDirectories(".")
+	localDirs := scanLocalDirectories(localPath)
 	if len(localDirs) > 0 {
 		fmt.Printf("  Found: %s\n", strings.Join(localDirs, ", "))
 	} else {
 		fmt.Println("  No directories found")
 	}
 
-	// 4. Suggest mappings
+	// 7. Suggest mappings
 	mappings := suggestMappings(folders, localDirs)
 
-	// 5. Interactive selection
+	// 8. Interactive selection
 	if interactive && len(mappings) > 0 {
-		mappings = interactiveMappingSelection(mappings)
+		mappings = interactiveMappingSelection(mappings, localPath)
 	}
 
-	// 6. Create and save config
-	cfg := config.CreateDefault(scrivPath, configPath)
+	// 9. Add project to global config
+	proj := globalCfg.AddProject(alias, localPath, scrivPath)
 	for _, m := range mappings {
-		cfg.AddMapping(m.MarkdownDir, m.ScrivenerFolder, m.SyncEnabled)
+		proj.AddMapping(m.MarkdownDir, m.ScrivenerFolder, m.SyncEnabled)
 	}
 
-	if err := cfg.Save(); err != nil {
+	// 10. Save global config
+	if err := globalCfg.Save(); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	enabledCount := len(cfg.EnabledMappings())
-	fmt.Printf("\nSaved %s with %d folder mapping(s).\n", configPath, enabledCount)
+	enabledCount := len(proj.EnabledMappings())
+	configPath, _ := config.ConfigPath()
+	fmt.Printf("\nProject '%s' added to %s with %d folder mapping(s).\n", alias, configPath, enabledCount)
+	fmt.Printf("\nTo sync, run: scriv-sync sync %s\n", alias)
 
 	return nil
 }
@@ -99,11 +129,11 @@ func suggestMappings(scrivFolders []*scrivener.Document, localDirs []string) []c
 }
 
 // interactiveMappingSelection allows user to toggle mappings.
-func interactiveMappingSelection(mappings []config.FolderMapping) []config.FolderMapping {
+func interactiveMappingSelection(mappings []config.FolderMapping, localPath string) []config.FolderMapping {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("\nSuggested mappings:")
-	printMappings(mappings)
+	printMappings(mappings, localPath)
 
 	fmt.Println("\nCommands:")
 	fmt.Println("  [1-9] Toggle mapping on/off")
@@ -126,11 +156,12 @@ func interactiveMappingSelection(mappings []config.FolderMapping) []config.Folde
 		case "c":
 			// Create missing directories for enabled mappings
 			for _, m := range mappings {
-				if m.SyncEnabled && !directoryExists(m.MarkdownDir) {
-					if err := os.MkdirAll(m.MarkdownDir, 0755); err != nil {
-						fmt.Printf("Warning: failed to create %s: %v\n", m.MarkdownDir, err)
+				dirPath := filepath.Join(localPath, m.MarkdownDir)
+				if m.SyncEnabled && !directoryExists(dirPath) {
+					if err := os.MkdirAll(dirPath, 0755); err != nil {
+						fmt.Printf("Warning: failed to create %s: %v\n", dirPath, err)
 					} else {
-						fmt.Printf("Created directory: %s\n", m.MarkdownDir)
+						fmt.Printf("Created directory: %s\n", dirPath)
 					}
 				}
 			}
@@ -144,7 +175,7 @@ func interactiveMappingSelection(mappings []config.FolderMapping) []config.Folde
 			if _, err := fmt.Sscanf(input, "%d", &num); err == nil {
 				if num >= 1 && num <= len(mappings) {
 					mappings[num-1].SyncEnabled = !mappings[num-1].SyncEnabled
-					printMappings(mappings)
+					printMappings(mappings, localPath)
 				} else {
 					fmt.Printf("Invalid number. Enter 1-%d.\n", len(mappings))
 				}
@@ -156,15 +187,16 @@ func interactiveMappingSelection(mappings []config.FolderMapping) []config.Folde
 }
 
 // printMappings displays the current mapping selections.
-func printMappings(mappings []config.FolderMapping) {
+func printMappings(mappings []config.FolderMapping, localPath string) {
 	for i, m := range mappings {
 		checkmark := " "
 		if m.SyncEnabled {
 			checkmark = "x"
 		}
 
+		dirPath := filepath.Join(localPath, m.MarkdownDir)
 		dirStatus := m.MarkdownDir
-		if !directoryExists(m.MarkdownDir) {
+		if !directoryExists(dirPath) {
 			dirStatus = fmt.Sprintf("(create) %s", m.MarkdownDir)
 		}
 
@@ -190,7 +222,8 @@ func scanLocalDirectories(root string) []string {
 				name == "vendor" ||
 				name == "plans" ||
 				name == "cmd" ||
-				name == "internal" {
+				name == "internal" ||
+				name == "scriv-sync" {
 				continue
 			}
 			dirs = append(dirs, name)

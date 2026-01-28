@@ -10,7 +10,12 @@ import (
 )
 
 var (
-	configPath     string
+	// Flags for init command
+	localPath string
+	scrivPath string
+	alias     string
+
+	// Global flags
 	dryRun         bool
 	nonInteractive bool
 	version        = "dev"
@@ -21,48 +26,91 @@ var rootCmd = &cobra.Command{
 	Short:   "Bi-directional sync between Scrivener and markdown",
 	Long:    `A tool for syncing content between Scrivener projects (.scriv) and markdown files.`,
 	Version: version,
-	RunE:    runSync,
 }
 
 var initCmd = &cobra.Command{
-	Use:   "init [path-to-.scriv]",
-	Short: "Initialize sync configuration (interactive folder discovery)",
-	Long: `Initialize a new sync configuration by scanning a Scrivener project
-and local directories, then creating a .scrivener-sync.yaml config file.`,
-	Args: cobra.ExactArgs(1),
+	Use:   "init",
+	Short: "Initialize a new sync project",
+	Long: `Initialize a new sync project by scanning a Scrivener project
+and local directories, then creating a configuration entry.
+
+Example:
+  scriv-sync init --local /path/to/markdown --scriv /path/to/Project.scriv --alias myproject`,
 	RunE: runInit,
 }
 
 var syncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Bi-directional sync (same as running without subcommand)",
-	RunE:  runSync,
+	Use:   "sync <alias>",
+	Short: "Bi-directional sync for a project",
+	Long: `Perform bi-directional sync between markdown and Scrivener.
+Changes on either side are detected and synced.
+
+Example:
+  scriv-sync sync myproject`,
+	Args: cobra.ExactArgs(1),
+	RunE: runSync,
 }
 
 var pullCmd = &cobra.Command{
-	Use:   "pull",
+	Use:   "pull <alias>",
 	Short: "Sync Scrivener to markdown (Scrivener wins)",
-	RunE:  runPull,
+	Long: `Pull changes from Scrivener to markdown files.
+Scrivener content takes precedence in conflicts.
+
+Example:
+  scriv-sync pull myproject`,
+	Args: cobra.ExactArgs(1),
+	RunE: runPull,
 }
 
 var pushCmd = &cobra.Command{
-	Use:   "push",
+	Use:   "push <alias>",
 	Short: "Sync markdown to Scrivener (markdown wins)",
-	RunE:  runPush,
+	Long: `Push changes from markdown to Scrivener.
+Markdown content takes precedence in conflicts.
+
+Example:
+  scriv-sync push myproject`,
+	Args: cobra.ExactArgs(1),
+	RunE: runPush,
 }
 
 var statusCmd = &cobra.Command{
-	Use:   "status",
+	Use:   "status <alias>",
 	Short: "Show pending changes without syncing",
-	RunE:  runStatus,
+	Long: `Show the current sync status for a project.
+Lists files that would be created, updated, or are in conflict.
+
+Example:
+  scriv-sync status myproject`,
+	Args: cobra.ExactArgs(1),
+	RunE: runStatus,
+}
+
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all configured projects",
+	Long: `List all projects configured in ~/.scriv-sync/config.yaml.
+
+Example:
+  scriv-sync list`,
+	RunE: runList,
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", ".scrivener-sync.yaml", "config file path")
+	// Init command flags
+	initCmd.Flags().StringVar(&localPath, "local", "", "path to local markdown directory (required)")
+	initCmd.Flags().StringVar(&scrivPath, "scriv", "", "path to Scrivener .scriv project (required)")
+	initCmd.Flags().StringVar(&alias, "alias", "", "alias name for this project (required)")
+	initCmd.MarkFlagRequired("local")
+	initCmd.MarkFlagRequired("scriv")
+	initCmd.MarkFlagRequired("alias")
+
+	// Global flags
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "preview changes without applying")
 	rootCmd.PersistentFlags().BoolVar(&nonInteractive, "non-interactive", false, "skip prompts, use config defaults")
 
-	rootCmd.AddCommand(initCmd, syncCmd, pullCmd, pushCmd, statusCmd)
+	rootCmd.AddCommand(initCmd, syncCmd, pullCmd, pushCmd, statusCmd, listCmd)
 }
 
 func main() {
@@ -73,19 +121,14 @@ func main() {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
-	scrivPath := args[0]
 	interactive := !nonInteractive
-
-	return sync.RunInit(scrivPath, configPath, interactive)
+	return sync.RunInit(alias, localPath, scrivPath, interactive)
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
-	if err != nil {
-		return err
-	}
+	projectAlias := args[0]
 
-	syncer, err := sync.NewSyncer(cfg)
+	syncer, err := sync.NewSyncerForAlias(projectAlias)
 	if err != nil {
 		return err
 	}
@@ -95,12 +138,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 }
 
 func runPull(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
-	if err != nil {
-		return err
-	}
+	projectAlias := args[0]
 
-	syncer, err := sync.NewSyncer(cfg)
+	syncer, err := sync.NewSyncerForAlias(projectAlias)
 	if err != nil {
 		return err
 	}
@@ -110,12 +150,9 @@ func runPull(cmd *cobra.Command, args []string) error {
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
-	if err != nil {
-		return err
-	}
+	projectAlias := args[0]
 
-	syncer, err := sync.NewSyncer(cfg)
+	syncer, err := sync.NewSyncerForAlias(projectAlias)
 	if err != nil {
 		return err
 	}
@@ -125,12 +162,9 @@ func runPush(cmd *cobra.Command, args []string) error {
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
-	if err != nil {
-		return err
-	}
+	projectAlias := args[0]
 
-	syncer, err := sync.NewSyncer(cfg)
+	syncer, err := sync.NewSyncerForAlias(projectAlias)
 	if err != nil {
 		return err
 	}
@@ -138,22 +172,29 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	return syncer.Status()
 }
 
-func loadConfig() (*config.Config, error) {
-	cfg, err := config.Load(configPath)
+func runList(cmd *cobra.Command, args []string) error {
+	globalCfg, err := config.LoadGlobal()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("config file not found: %s\nRun 'scriv-sync init <path-to-.scriv>' to create one", configPath)
-		}
-		return nil, fmt.Errorf("failed to load config: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	if errs := cfg.Validate(); len(errs) > 0 {
-		fmt.Fprintln(os.Stderr, "Config validation errors:")
-		for _, e := range errs {
-			fmt.Fprintf(os.Stderr, "  - %s\n", e)
-		}
-		return nil, fmt.Errorf("invalid configuration")
+	aliases := globalCfg.ListProjects()
+	if len(aliases) == 0 {
+		fmt.Println("No projects configured.")
+		fmt.Println("\nTo add a project, run:")
+		fmt.Println("  scriv-sync init --local <path> --scriv <path> --alias <name>")
+		return nil
 	}
 
-	return cfg, nil
+	fmt.Println("Configured projects:")
+	for _, a := range aliases {
+		proj, _ := globalCfg.GetProject(a)
+		fmt.Printf("  %s\n", a)
+		fmt.Printf("    Local:     %s\n", proj.LocalPath)
+		fmt.Printf("    Scrivener: %s\n", proj.ScrivPath)
+		enabledCount := len(proj.EnabledMappings())
+		fmt.Printf("    Mappings:  %d enabled\n", enabledCount)
+	}
+
+	return nil
 }
