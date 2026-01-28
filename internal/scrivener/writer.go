@@ -101,6 +101,7 @@ func (w *Writer) collectUUIDs(items []XMLBinderItem) {
 }
 
 // UpdateDocumentContent updates the content of an existing document.
+// When useRTF is true, converts markdown to RTF format for Scrivener.
 func (w *Writer) UpdateDocumentContent(docUUID, content string, useRTF bool) error {
 	// Determine content path - try new format first
 	contentDir := filepath.Join(w.filesDir, docUUID)
@@ -110,7 +111,7 @@ func (w *Writer) UpdateDocumentContent(docUUID, content string, useRTF bool) err
 		var data string
 		if useRTF {
 			contentPath = filepath.Join(contentDir, "content.rtf")
-			data = rtf.ToRTF(content)
+			data = rtf.MarkdownToRTF(content)
 		} else {
 			contentPath = filepath.Join(contentDir, "content.txt")
 			data = content
@@ -123,7 +124,7 @@ func (w *Writer) UpdateDocumentContent(docUUID, content string, useRTF bool) err
 	var data string
 	if useRTF {
 		contentPath = filepath.Join(w.filesDir, docUUID+".rtf")
-		data = rtf.ToRTF(content)
+		data = rtf.MarkdownToRTF(content)
 	} else {
 		contentPath = filepath.Join(w.filesDir, docUUID+".txt")
 		data = content
@@ -225,7 +226,8 @@ func (w *Writer) FindFolderByTitle(title string) (string, error) {
 func (w *Writer) findFolderUUID(items []XMLBinderItem, title string) string {
 	lowerTitle := strings.ToLower(title)
 	for _, item := range items {
-		if item.Type == "Folder" && strings.ToLower(item.Title) == lowerTitle {
+		isFolder := item.Type == "Folder" || item.Type == "DraftFolder" || item.Type == "ResearchFolder"
+		if isFolder && strings.ToLower(item.Title) == lowerTitle {
 			return item.UUID
 		}
 		if uuid := w.findFolderUUID(item.Children, title); uuid != "" {

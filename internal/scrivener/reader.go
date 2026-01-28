@@ -158,7 +158,7 @@ func (r *Reader) parseBinderItem(item XMLBinderItem) (*Document, error) {
 	}
 
 	docType := "document"
-	if item.Type == "Folder" {
+	if item.Type == "Folder" || item.Type == "DraftFolder" || item.Type == "ResearchFolder" || item.Type == "TrashFolder" {
 		docType = "folder"
 	}
 
@@ -196,7 +196,7 @@ func (r *Reader) readDocumentContent(uuid string) (string, error) {
 	// Try the new format first
 	contentPath := filepath.Join(r.filesDir, uuid, "content.rtf")
 	if data, err := os.ReadFile(contentPath); err == nil {
-		return rtf.StripRTF(string(data)), nil
+		return rtf.RTFToMarkdown(string(data)), nil
 	}
 
 	// Try plain text
@@ -208,7 +208,7 @@ func (r *Reader) readDocumentContent(uuid string) (string, error) {
 	// Try older format: Files/Data/{UUID}.rtf
 	contentPath = filepath.Join(r.filesDir, uuid+".rtf")
 	if data, err := os.ReadFile(contentPath); err == nil {
-		return rtf.StripRTF(string(data)), nil
+		return rtf.RTFToMarkdown(string(data)), nil
 	}
 
 	// Try older format: Files/Data/{UUID}.txt
