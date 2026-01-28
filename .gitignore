@@ -1,0 +1,15 @@
+# Binary (at root only)
+/scriv-sync
+
+# Test output
+*.test
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
