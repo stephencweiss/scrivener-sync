@@ -97,6 +97,18 @@ Example:
 	RunE: runList,
 }
 
+var removeAliasCmd = &cobra.Command{
+	Use:   "remove-alias <alias>",
+	Short: "Remove a configured project",
+	Long: `Remove a project configuration and its associated state file.
+This does NOT delete any content files, only the sync configuration.
+
+Example:
+  scriv-sync remove-alias myproject`,
+	Args: cobra.ExactArgs(1),
+	RunE: runRemoveAlias,
+}
+
 func init() {
 	// Init command flags
 	initCmd.Flags().StringVar(&localPath, "local", "", "path to local markdown directory (required)")
@@ -110,7 +122,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "preview changes without applying")
 	rootCmd.PersistentFlags().BoolVar(&nonInteractive, "non-interactive", false, "skip prompts, use config defaults")
 
-	rootCmd.AddCommand(initCmd, syncCmd, pullCmd, pushCmd, statusCmd, listCmd)
+	rootCmd.AddCommand(initCmd, syncCmd, pullCmd, pushCmd, statusCmd, listCmd, removeAliasCmd)
 }
 
 func main() {
@@ -197,4 +209,9 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func runRemoveAlias(cmd *cobra.Command, args []string) error {
+	projectAlias := args[0]
+	return sync.RunRemoveAlias(projectAlias)
 }

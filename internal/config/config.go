@@ -172,6 +172,28 @@ func (g *GlobalConfig) AddProject(alias, localPath, scrivPath string) *ProjectCo
 	return proj
 }
 
+// RemoveProject removes a project from the global config and deletes its state file.
+func (g *GlobalConfig) RemoveProject(alias string) error {
+	if _, exists := g.Projects[alias]; !exists {
+		return fmt.Errorf("project '%s' not found", alias)
+	}
+
+	// Remove from map
+	delete(g.Projects, alias)
+
+	// Delete state file
+	statePath, err := StatePath(alias)
+	if err != nil {
+		return fmt.Errorf("failed to get state path: %w", err)
+	}
+
+	if err := os.Remove(statePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete state file: %w", err)
+	}
+
+	return nil
+}
+
 // ListProjects returns all project aliases sorted alphabetically.
 func (g *GlobalConfig) ListProjects() []string {
 	aliases := make([]string, 0, len(g.Projects))
