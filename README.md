@@ -29,6 +29,9 @@ make install
 
 # List all configured projects
 ./scriv-sync list
+
+# Remove a project configuration
+./scriv-sync remove-alias harcroft
 ```
 
 ## Commands
@@ -41,6 +44,7 @@ make install
 | `scriv-sync push <alias>` | markdown -> Scrivener |
 | `scriv-sync status <alias>` | Show pending changes |
 | `scriv-sync list` | List all configured projects |
+| `scriv-sync remove-alias <alias>` | Remove a project configuration |
 
 ### Init Flags
 
